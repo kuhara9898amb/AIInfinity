@@ -1,0 +1,55 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: ai-infinity-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - TZ=Asia/Tokyo
+      - GENERIC_TIMEZONE=Asia/Tokyo
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - ai_infinity_network
+
+  mysql:
+    image: mysql:8.4
+    container_name: ai-infinity-mysql
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_change_me
+      MYSQL_DATABASE: ai_infinity
+      MYSQL_USER: ai_infinity_user
+      MYSQL_PASSWORD: ai_infinity_password_change_me
+      TZ: Asia/Tokyo
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - ai_infinity_network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: ai-infinity-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      - mysql
+    networks:
+      - ai_infinity_network
+
+volumes:
+  n8n_data:
+  mysql_data:
+
+networks:
+  ai_infinity_network:
+    driver: bridge
