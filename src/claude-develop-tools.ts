@@ -144,7 +144,7 @@ export function registerClaudeDevelopTools(server: Server) {
         '', '【開発依頼】', task, '', '【完成条件】', acceptanceCriteria, context ? '\n【参考情報】\n' + context : '',
       ].join('\n');
       try {
-        const { stdout } = await execFileAsync(CLAUDE_BIN, ['-p',prompt,'--output-format','json','--permission-mode','acceptEdits','--tools','Read,Edit,Glob,Grep','--max-turns','6','--no-session-persistence'], {
+        const { stdout } = await execFileAsync(CLAUDE_BIN, ['-p',prompt,'--output-format','json','--permission-mode','acceptEdits','--tools','Read,Edit,Glob,Grep','--max-turns','6','--setting-sources','','--no-session-persistence'], {
           cwd: before.root, env: childEnv(), timeout: 90_000, maxBuffer: 8 * 1024 * 1024,
         });
         const claude = parseClaude(stdout);
