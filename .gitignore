@@ -1,0 +1,23 @@
+.env
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Runtime and logs
+*.log
+logs/
+storage/
+
+# Backups
+*.backup-*
+*.bak
+
+# macOS
+.DS_Store
+
+*.backup
