@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { access } from 'node:fs/promises';
@@ -67,7 +66,9 @@ function parseClaude(stdout: string) {
     sessionId: typeof parsed.session_id === 'string' ? parsed.session_id : null,
   };
 }
-async function updateRun(id: number, values: Record<string, unknown>) {
+type SqlValue = string | number | boolean | Date | null;
+
+async function updateRun(id: number, values: Record<string, SqlValue>) {
   const columns = Object.keys(values);
   const assignments = columns.map(column => String.fromCharCode(96) + column + String.fromCharCode(96) + ' = ?').join(', ');
   await pool.execute('UPDATE claude_development_runs SET ' + assignments + ', updated_at = NOW() WHERE id = ? LIMIT 1', [...columns.map(column => values[column]), id]);
