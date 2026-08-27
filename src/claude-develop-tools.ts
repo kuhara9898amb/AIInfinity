@@ -144,8 +144,8 @@ export function registerClaudeDevelopTools(server: Server) {
         '', '【開発依頼】', task, '', '【完成条件】', acceptanceCriteria, context ? '\n【参考情報】\n' + context : '',
       ].join('\n');
       try {
-        const { stdout } = await execFileAsync(CLAUDE_BIN, ['-p',prompt,'--output-format','json','--permission-mode','acceptEdits','--tools','Read,Edit,Glob,Grep','--max-turns','20','--no-session-persistence'], {
-          cwd: before.root, env: childEnv(), timeout: 600_000, maxBuffer: 8 * 1024 * 1024,
+        const { stdout } = await execFileAsync(CLAUDE_BIN, ['-p',prompt,'--output-format','json','--permission-mode','acceptEdits','--tools','Read,Edit,Glob,Grep','--max-turns','6','--no-session-persistence'], {
+          cwd: before.root, env: childEnv(), timeout: 90_000, maxBuffer: 8 * 1024 * 1024,
         });
         const claude = parseClaude(stdout);
         const changed = await git(before.root, ['diff','--name-only']);
