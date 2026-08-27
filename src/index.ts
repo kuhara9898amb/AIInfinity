@@ -12,6 +12,7 @@ import { registerTunnelOperatorTools } from './tunnel-operator-tools.js';
 import { registerSoreAiOperatorTools } from './soreai-operator-tools.js';
 import { registerSugoiAiSiteShindanOperatorTools } from './sugoi-ai-site-shindan-operator-tools.js';
 import { registerClaudeConsultTools } from './claude-consult-tools.js';
+import { registerClaudeContentTools } from './claude-content-tools.js';
 import { registerClaudeDevelopTools } from './claude-develop-tools.js';
 import { registerProjectDatabaseProvisionTools } from './project-database-provision-tools.js';
 import { access, appendFile, copyFile, mkdir, readFile, readdir, realpath, stat, writeFile } from 'node:fs/promises';
@@ -472,6 +473,7 @@ registerTunnelOperatorTools(server);
 registerSoreAiOperatorTools(server);
 registerSugoiAiSiteShindanOperatorTools(server);
 registerClaudeConsultTools(server);
+registerClaudeContentTools(server);
 registerClaudeDevelopTools(server);
 registerProjectDatabaseProvisionTools(server);
 try { const connection=await pool.getConnection(); await connection.ping(); connection.release(); console.error('MySQL connection: OK'); }

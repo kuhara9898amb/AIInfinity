@@ -255,7 +255,14 @@ export function registerTunnelOperatorTools(server: Server) {
       });
     } catch (error) {
       if (action === 'restart') {
-        try { await audit('combined_restart', 'failed', { error: String(error) }); } catch {}
+        const commandError = error as Error & { stdout?: string | Buffer; stderr?: string | Buffer };
+        const details = [
+          commandError.message,
+          commandError.stdout ? `stdout:\n${String(commandError.stdout).trim()}` : '',
+          commandError.stderr ? `stderr:\n${String(commandError.stderr).trim()}` : '',
+        ].filter(Boolean).join('\n\n');
+        try { await audit('combined_restart', 'failed', { error: details }); } catch {}
+        return errorResult(new Error(details));
       }
       return errorResult(error);
     }
