@@ -1,7 +1,8 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import mysql from 'mysql2/promise';
 import * as z from 'zod/v4';
 
@@ -17,6 +18,16 @@ const PROJECTS = {
   sugoi_ai_site_shindan: '/Users/erka/SugoiAISiteShindan',
 } as const;
 type ProjectKey = keyof typeof PROJECTS;
+type PendingCommit = {
+  project: ProjectKey;
+  files: string[];
+  commitMessage: string;
+  expectedHead: string;
+  expectedDiffHash: string;
+  expiresAt: number;
+};
+const COMMIT_APPROVAL_TTL_MS = 10 * 60 * 1000;
+const pendingCommits = new Map<string, PendingCommit>();
 type Server = { registerTool: (name: string, config: any, handler: (input: any) => Promise<any>) => void };
 
 const pool = mysql.createPool({
@@ -73,6 +84,94 @@ async function updateRun(id: number, values: Record<string, SqlValue>) {
   const assignments = columns.map(column => String.fromCharCode(96) + column + String.fromCharCode(96) + ' = ?').join(', ');
   await pool.execute('UPDATE claude_development_runs SET ' + assignments + ', updated_at = NOW() WHERE id = ? LIMIT 1', [...columns.map(column => values[column]), id]);
 }
+const FORBIDDEN_FILE = /(^|\/)(\.env(?:\.|$)|\.git(?:\/|$)|vendor(?:\/|$)|node_modules(?:\/|$)|storage\/logs(?:\/|$)|.*\.(?:pem|key|p12|pfx)$)/i;
+const SECRET_PATTERNS = [
+  /(?:sk-ant-|sk-)[A-Za-z0-9_\-.]{20,}/i,
+  /Bearer\s+[A-Za-z0-9_\-.]{20,}/i,
+  /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]{40,}/,
+];
+
+function normalizeFiles(files: string[]) {
+  const normalized = Array.from(new Set(files.map(file => file.trim()).filter(Boolean)));
+  if (!normalized.length) throw new Error('対象filesを1件以上明示してください');
+  for (const file of normalized) {
+    if (path.isAbsolute(file) || file === '..' || file.startsWith('../') || file.includes('/../') || file.includes('\\')) {
+      throw new Error('不正な対象パスです: ' + file);
+    }
+    if (FORBIDDEN_FILE.test(file)) throw new Error('禁止ファイルは対象にできません: ' + file);
+  }
+  return normalized.sort();
+}
+
+async function changedFiles(root: string) {
+  const changed = await git(root, ['diff', '--name-only', 'HEAD']);
+  const untracked = await git(root, ['ls-files', '--others', '--exclude-standard']);
+  return Array.from(new Set(
+    [...changed.stdout.split(/\r?\n/), ...untracked.stdout.split(/\r?\n/)].filter(Boolean),
+  )).sort();
+}
+
+async function fileSnapshotHash(root: string, files: string[]) {
+  const hash = crypto.createHash('sha256');
+  for (const file of files) {
+    hash.update(file).update('\0');
+    try {
+      hash.update(await readFile(path.join(root, file)));
+    } catch {
+      hash.update('[DELETED]');
+    }
+    hash.update('\0');
+  }
+  return hash.digest('hex');
+}
+
+async function inspectChanges(project: ProjectKey, root: string, requestedFiles?: string[]) {
+  const allChanged = await changedFiles(root);
+  const files = requestedFiles ? normalizeFiles(requestedFiles) : normalizeFiles(allChanged);
+  const missing = files.filter(file => !allChanged.includes(file));
+  if (missing.length) throw new Error('変更されていないファイルが指定されています: ' + missing.join(', '));
+  const forbidden = files.filter(file => FORBIDDEN_FILE.test(file));
+  if (forbidden.length) throw new Error('禁止ファイルへの変更を検出しました: ' + forbidden.join(', '));
+  const diff = await git(root, ['diff', '--check', '--', ...files]);
+  const suspicious: string[] = [];
+  for (const file of files) {
+    try {
+      const content = (await readFile(path.join(root, file), 'utf8')).slice(0, 2_000_000);
+      if (SECRET_PATTERNS.some(pattern => pattern.test(content))) suspicious.push(file);
+    } catch {}
+  }
+  if (suspicious.length) throw new Error('機密情報らしき内容を検出しました: ' + suspicious.join(', '));
+  const verification = await verify(project, root, files);
+  return {
+    files,
+    allChangedFiles: allChanged,
+    diffCheck: diff.stdout,
+    diffHash: await fileSnapshotHash(root, files),
+    verification,
+  };
+}
+
+async function auditGitAction(
+  project: ProjectKey,
+  action: string,
+  reason: string,
+  before: Record<string, unknown>,
+  result: Record<string, unknown>,
+  status: 'completed' | 'failed' = 'completed',
+) {
+  await pool.execute(
+    `INSERT INTO claude_development_runs
+      (project_id,project_key,task,context,acceptance_criteria,git_before,result,changed_files,verification,status,started_at,completed_at,created_at,updated_at)
+     VALUES
+      ((SELECT id FROM projects WHERE project_code = ? OR id = 1 ORDER BY project_code = ? DESC LIMIT 1),?,?,?,?,?,?,?,?,?,NOW(),NOW(),NOW(),NOW())`,
+    [
+      project, project, project, '[git] ' + action, reason, 'safe fixed git action',
+      JSON.stringify(before), JSON.stringify(result),
+      JSON.stringify(result.files ?? []), JSON.stringify(result.verification ?? []), status,
+    ],
+  );
+}
+
 async function verify(project: ProjectKey, root: string, files: string[]) {
   const checks: Array<Record<string, unknown>> = [];
   const diff = await git(root, ['diff', '--check']);
@@ -82,7 +181,7 @@ async function verify(project: ProjectKey, root: string, files: string[]) {
     checks.push({ check: 'php -l', file, success: true, output: (stdout + stderr).trim() });
   }
   if (project === 'mcpv4') {
-    const { stdout, stderr } = await execFileAsync('/usr/local/bin/npm', ['run', 'check'], { cwd: root, env: childEnv(), timeout: 120_000, maxBuffer: 8 * 1024 * 1024 });
+    const { stdout, stderr } = await execFileAsync('/usr/local/bin/npm', ['run', 'check'], { cwd: root, env: childEnv(), timeout: 45_000, maxBuffer: 8 * 1024 * 1024 });
     checks.push({ check: 'npm run check', success: true, output: (stdout + stderr).trim() });
   }
   return checks;
@@ -93,16 +192,22 @@ export function registerClaudeDevelopTools(server: Server) {
     title: 'Claude Code安全開発実行',
     description: '登録済みローカルプロジェクト内でClaude Codeへ調査・実装を依頼します。Git cleanを必須とし、機密ファイル・本番反映・DB・外部通信・シェル操作を禁止します。結果と差分はDBへ保存します。',
     inputSchema: z.object({
-      action: z.enum(['status','prepare','run','result']),
+      action: z.enum(['status','prepare','run','result','validate_changes','commit_prepare','commit_apply','log']),
       project: z.enum(['aiinfinity','dashboard98','sages','monkeyai','mcpv4','soreai','sugoi_ai_site_shindan']).optional(),
       task: z.string().min(1).max(20_000).optional(),
       context: z.string().max(30_000).optional().default(''),
       acceptanceCriteria: z.string().max(10_000).optional().default(''),
       runId: z.number().int().positive().optional(),
+      files: z.array(z.string().min(1).max(500)).max(100).optional(),
+      commitMessage: z.string().min(3).max(200).optional(),
+      approvalCode: z.string().min(16).max(128).optional(),
+      expectedHead: z.string().regex(/^[a-f0-9]{40}$/).optional(),
+      expectedDiffHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+      logLimit: z.number().int().min(1).max(50).optional().default(10),
       reason: z.string().min(5).max(500),
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, async ({ action, project, task, context, acceptanceCriteria, runId, reason }) => {
+  }, async ({ action, project, task, context, acceptanceCriteria, runId, files, commitMessage, approvalCode, expectedHead, expectedDiffHash, logLimit, reason }) => {
     try {
       if (action === 'status') {
         await access(CLAUDE_BIN);
@@ -121,6 +226,74 @@ export function registerClaudeDevelopTools(server: Server) {
       }
       if (!project) throw new Error('projectが必要です');
       const before = await projectStatus(project);
+
+      if (action === 'log') {
+        const recent = await git(before.root, ['log', '--oneline', '--decorate', '-n', String(logLimit)]);
+        await auditGitAction(project, action, reason, before, { log: recent.stdout });
+        return textResult({ success: true, action, project, log: recent.stdout, historySaved: true });
+      }
+
+      if (action === 'validate_changes') {
+        const inspected = await inspectChanges(project, before.root, files);
+        await auditGitAction(project, action, reason, before, inspected);
+        return textResult({ success: true, action, project, head: before.head, ...inspected, historySaved: true });
+      }
+
+      if (action === 'commit_prepare') {
+        if (!files || !commitMessage) throw new Error('commit_prepareではfilesとcommitMessageが必要です');
+        if (commitMessage.includes('\n') || commitMessage.startsWith('-')) throw new Error('不正なcommitMessageです');
+        const inspected = await inspectChanges(project, before.root, files);
+        const code = crypto.randomBytes(24).toString('hex');
+        const pending: PendingCommit = {
+          project,
+          files: inspected.files,
+          commitMessage,
+          expectedHead: before.head,
+          expectedDiffHash: inspected.diffHash,
+          expiresAt: Date.now() + COMMIT_APPROVAL_TTL_MS,
+        };
+        pendingCommits.set(code, pending);
+        const result = { files: inspected.files, expectedHead: before.head, expectedDiffHash: inspected.diffHash, approvalCode: code, expiresAt: new Date(pending.expiresAt).toISOString(), verification: inspected.verification };
+        await auditGitAction(project, action, reason, before, result);
+        return textResult({ success: true, action, project, ...result, historySaved: true });
+      }
+
+      if (action === 'commit_apply') {
+        if (!files || !commitMessage || !approvalCode || !expectedHead || !expectedDiffHash) {
+          throw new Error('commit_applyではfiles、commitMessage、approvalCode、expectedHead、expectedDiffHashが必要です');
+        }
+        const pending = pendingCommits.get(approvalCode);
+        if (!pending || pending.expiresAt < Date.now()) {
+          pendingCommits.delete(approvalCode);
+          throw new Error('承認コードが無効または期限切れです。commit_prepareからやり直してください');
+        }
+        const normalized = normalizeFiles(files);
+        if (pending.project !== project ||
+            pending.commitMessage !== commitMessage ||
+            pending.expectedHead !== expectedHead ||
+            pending.expectedDiffHash !== expectedDiffHash ||
+            JSON.stringify(pending.files) !== JSON.stringify(normalized)) {
+          throw new Error('commit_prepare時の承認内容と一致しません');
+        }
+        const currentHead = (await git(before.root, ['rev-parse', 'HEAD'])).stdout;
+        if (currentHead !== expectedHead) throw new Error('HEADが変更されたため安全停止しました');
+        const inspected = await inspectChanges(project, before.root, normalized);
+        if (inspected.diffHash !== expectedDiffHash) throw new Error('差分ハッシュが変更されたため安全停止しました');
+        const preStaged = await git(before.root, ['diff', '--cached', '--name-only']);
+        if (preStaged.stdout) throw new Error('既にステージ済みの変更があるため安全停止しました');
+        await git(before.root, ['add', '--', ...normalized]);
+        const staged = (await git(before.root, ['diff', '--cached', '--name-only'])).stdout.split(/\r?\n/).filter(Boolean).sort();
+        if (JSON.stringify(staged) !== JSON.stringify(normalized)) {
+          throw new Error('ステージ対象が明示filesと一致しないためコミットを停止しました');
+        }
+        await git(before.root, ['commit', '-m', commitMessage], 120_000);
+        pendingCommits.delete(approvalCode);
+        const after = await projectStatus(project);
+        const result = { files: normalized, commit: after.head, branch: after.branch, clean: after.clean, verification: inspected.verification };
+        await auditGitAction(project, action, reason, before, result);
+        return textResult({ success: true, action, project, ...result, historySaved: true });
+      }
+
       if (action === 'prepare') {
         return textResult({
           success: true, action, ...before, ready: before.clean,
