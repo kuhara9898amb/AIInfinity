@@ -204,6 +204,62 @@ async function saveConsultation(
   return (result as ResultSetHeader).insertId;
 }
 
+
+const COUNCIL_GEMINI_WEBHOOK_PATH = 'ai-council-gemini-v4-8f3c21d7';
+const COUNCIL_TIMEOUT_MS = 180_000;
+const MAX_COUNCIL_RESPONSE_CHARS = 32_000;
+
+function asNonEmptyText(value: unknown, label: string) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) throw new Error(label + 'が空です');
+  if (text.length > MAX_COUNCIL_RESPONSE_CHARS) throw new Error(label + 'が応答上限を超えました');
+  return text;
+}
+
+async function callCouncilGemini(input: {
+  topic: string;
+  chairMessage: string;
+  transcript: string;
+  claudeResponse: string;
+}) {
+  const baseUrl = String(process.env.N8N_BASE_URL ?? '').replace(/\/+$/, '');
+  if (!baseUrl) throw new Error('N8N_BASE_URLが未設定です');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), COUNCIL_TIMEOUT_MS);
+  try {
+    const response = await fetch(baseUrl + '/webhook/' + COUNCIL_GEMINI_WEBHOOK_PATH, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic: input.topic,
+        chair_message: input.chairMessage,
+        transcript: input.transcript,
+        claude_response: input.claudeResponse,
+        max_output_tokens: 1400,
+      }),
+      signal: controller.signal,
+    });
+    const body = await response.text();
+    if (body.length > MAX_COUNCIL_RESPONSE_CHARS * 2) throw new Error('Gemini応答が上限を超えました');
+    if (!response.ok) throw new Error('Gemini n8n Webhook error: HTTP ' + response.status);
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(body) as Record<string, unknown>;
+    } catch {
+      throw new Error('Gemini n8n Webhookが不正なJSONを返しました');
+    }
+    return {
+      provider: 'gemini_api_via_n8n',
+      mode: 'api',
+      model: typeof payload.model === 'string' ? payload.model : 'gemini',
+      content: asNonEmptyText(payload.content, 'Gemini回答'),
+      usage: payload.usage ?? null,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export function registerClaudeConsultTools(server: Server) {
   server.registerTool('claude_consult', {
     title: 'Claude Code即時相談',
@@ -331,6 +387,132 @@ export function registerClaudeConsultTools(server: Server) {
     } catch (error) {
       try { await audit(action, 'failed', { reason, error: redact(String(error)) }); } catch {}
       return errorResult(error);
+    }
+
+  });
+
+  server.registerTool('ai_council', {
+    title: '3AI会議ターン',
+    description: 'チャッピーを議長とし、クロちゃんはClaude Code CLI、Geminiはn8n Credential経由APIで1ラウンドの意見を取得します。APIキーや任意URL・任意コマンドは受け付けません。',
+    inputSchema: z.object({
+      action: z.enum(['status', 'round']),
+      topic: z.string().min(1).max(6_000).optional(),
+      chairMessage: z.string().min(1).max(6_000).optional(),
+      transcript: z.string().max(20_000).optional().default(''),
+      reason: z.string().min(5).max(500),
+    }).strict(),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  }, async ({ action, topic, chairMessage, transcript, reason }) => {
+    try {
+      await mkdir(CONSULT_ROOT, { recursive: true });
+      const claudeBin = await resolveClaudeBin();
+      const version = await execFileAsync(claudeBin, ['--version'], {
+        cwd: CONSULT_ROOT,
+        env: childEnv(),
+        timeout: 15_000,
+        maxBuffer: 128 * 1024,
+      });
+      const paidEnvironment = hasPaidProviderEnvironment();
+      const auth = await authStatus(claudeBin);
+      const n8nConfigured = Boolean(String(process.env.N8N_BASE_URL ?? '').trim());
+
+      if (action === 'status') {
+        return textResult({
+          success: true,
+          action,
+          ready: paidEnvironment.length === 0 && auth.subscriptionAuthenticated && n8nConfigured,
+          claude: {
+            provider: 'claude_code',
+            mode: 'cli_subscription',
+            version: version.stdout.trim(),
+            subscriptionAuthenticated: auth.subscriptionAuthenticated,
+            paidProviderEnvironmentPresent: paidEnvironment,
+            toolAccess: 'disabled',
+          },
+          gemini: {
+            provider: 'gemini',
+            mode: 'api_via_n8n_credential',
+            n8nConfigured,
+            webhookPath: COUNCIL_GEMINI_WEBHOOK_PATH,
+          },
+        });
+      }
+
+      if (!topic || !chairMessage) throw new Error('action=roundではtopicとchairMessageが必要です');
+      rejectSecrets(topic + '\n' + chairMessage, transcript);
+      if (paidEnvironment.length > 0) throw new Error('Claude API従量課金経路が存在するため実行を拒否しました');
+      if (!auth.subscriptionAuthenticated) throw new Error('Claude Pro/Maxサブスク認証を確認できません');
+      if (!n8nConfigured) throw new Error('N8N_BASE_URLが未設定です');
+
+      const claudePrompt = [
+        'あなたは3AI会議の技術・リスク担当「クロちゃん」です。',
+        '相談専用です。ツール、ファイル、コマンド、外部通信は一切使わず、提示された情報だけで回答してください。',
+        '議長チャッピーの案を鵜呑みにせず、反対意見、見落とし、改善案、実行条件を日本語で明確に述べてください。',
+        '',
+        '【議題】',
+        topic,
+        '',
+        '【議長チャッピーの発言】',
+        chairMessage,
+        transcript ? '\n【これまでの会議】\n' + transcript : '',
+      ].join('\n');
+
+      const startedAt = Date.now();
+      const { stdout, stderr } = await execFileAsync(claudeBin, [
+        '-p', claudePrompt,
+        '--output-format', 'json',
+        '--permission-mode', 'dontAsk',
+        '--tools', '',
+        '--max-turns', '1',
+        '--no-session-persistence',
+      ], {
+        cwd: CONSULT_ROOT,
+        env: childEnv(),
+        timeout: TIMEOUT_MS,
+        maxBuffer: MAX_BUFFER,
+      });
+      const claudeRaw = extractClaudeResult(stdout);
+      const claudeContent = asNonEmptyText(
+        typeof claudeRaw.response === 'string' ? claudeRaw.response : JSON.stringify(claudeRaw.response),
+        'Claude回答',
+      );
+      const gemini = await callCouncilGemini({
+        topic,
+        chairMessage,
+        transcript,
+        claudeResponse: claudeContent,
+      });
+      const durationMs = Date.now() - startedAt;
+      await audit('ai_council_round', 'success', {
+        reason,
+        topicHash: crypto.createHash('sha256').update(topic).digest('hex'),
+        durationMs,
+        claudeStderr: redact(stderr),
+      });
+      return textResult({
+        success: true,
+        action,
+        chair: { provider: 'chatgpt', mode: 'current_session', content: chairMessage },
+        claude: {
+          provider: 'claude_code',
+          mode: 'cli_subscription',
+          model: 'Claude Code',
+          content: claudeContent,
+          usage: claudeRaw.usage,
+          costUsd: claudeRaw.cost_usd,
+          toolAccess: 'disabled',
+        },
+        gemini,
+        durationMs,
+      });
+    } catch (error) {
+      try { await audit('ai_council_' + action, 'failed', { reason, error: redact(String(error)) }); } catch {}
+      return errorResult(new Error(redact(String(error))));
     }
   });
 }
