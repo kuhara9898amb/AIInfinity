@@ -467,12 +467,22 @@ async function safePath(
       throw error;
     }
 
-    const parent = path.dirname(candidate);
-    const realParent = await realpath(parent);
+    let ancestor = path.dirname(candidate);
+    let realAncestor: string | null = null;
+    while (ancestor === root || ancestor.startsWith(root + path.sep)) {
+      try {
+        realAncestor = await realpath(ancestor);
+        break;
+      } catch (ancestorError: any) {
+        if (ancestorError?.code !== 'ENOENT') throw ancestorError;
+        if (ancestor === root) break;
+        ancestor = path.dirname(ancestor);
+      }
+    }
 
     if (
-      realParent !== root &&
-      !realParent.startsWith(root + path.sep)
+      !realAncestor ||
+      (realAncestor !== root && !realAncestor.startsWith(root + path.sep))
     ) {
       throw new Error(
         'symlink経由のプロジェクトルート外書込みは禁止されています'
