@@ -8,7 +8,8 @@ export type ProjectKey =
   | 'monkeyai'
   | 'mcpv4'
   | 'soreai'
-  | 'sugoi_ai_site_shindan';
+  | 'sugoi_ai_site_shindan'
+  | 'ai_lead_creator';
 
 export type ProjectConfig = {
   key: ProjectKey;
@@ -99,6 +100,18 @@ export const projects: Record<ProjectKey, ProjectConfig> = {
       database: env('SUGOI_AI_SITE_SHINDAN_DB_NAME', 'sugoi_ai_site_shindan'),
       user: env('SUGOI_AI_SITE_SHINDAN_DB_USER', env('AI_INFINITY_DB_USER')),
       password: env('SUGOI_AI_SITE_SHINDAN_DB_PASSWORD', env('AI_INFINITY_DB_PASSWORD')),
+    },
+  },
+  ai_lead_creator: {
+    key: 'ai_lead_creator',
+    label: 'AIリードクリエイター',
+    laravelRoot: env('AI_LEAD_CREATOR_LARAVEL_ROOT', '/Users/erka/AILeadCreator'),
+    db: {
+      host: env('AI_LEAD_CREATOR_DB_HOST', env('AI_INFINITY_DB_HOST', '127.0.0.1')),
+      port: Number(env('AI_LEAD_CREATOR_DB_PORT', env('AI_INFINITY_DB_PORT', '3307'))),
+      database: env('AI_LEAD_CREATOR_DB_NAME', 'ai_lead_creator'),
+      user: env('AI_LEAD_CREATOR_DB_USER', env('AI_INFINITY_DB_USER')),
+      password: env('AI_LEAD_CREATOR_DB_PASSWORD', env('AI_INFINITY_DB_PASSWORD')),
     },
   },
   mcpv4: {

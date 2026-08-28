@@ -75,6 +75,7 @@ const projectSchema = z.enum([
   'mcpv4',
   'soreai',
   'sugoi_ai_site_shindan',
+  'ai_lead_creator',
 ]);
 
 const writableRoots = [
@@ -422,7 +423,16 @@ async function safePath(
 ) {
   const project = getProject(projectKey);
 
-  const root = await realpath(project.laravelRoot);
+  let root: string;
+  let createdRoot = false;
+  try {
+    root = await realpath(project.laravelRoot);
+  } catch (error: any) {
+    if (!allowMissing || error?.code !== 'ENOENT') throw error;
+    await mkdir(project.laravelRoot, { recursive: true, mode: 0o700 });
+    root = await realpath(project.laravelRoot);
+    createdRoot = true;
+  }
   const candidate = path.resolve(root, relativePath || '.');
 
   if (
@@ -430,6 +440,10 @@ async function safePath(
     !candidate.startsWith(root + path.sep)
   ) {
     throw new Error('プロジェクトルート外へのアクセスは禁止されています');
+  }
+
+  if (createdRoot) {
+    return { root, candidate };
   }
 
   try {

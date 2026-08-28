@@ -16,6 +16,7 @@ const PROJECTS = {
   mcpv4: '/Users/erka/AIInfinity/mysql-mcp-v4',
   soreai: '/Users/erka/SoreAI',
   sugoi_ai_site_shindan: '/Users/erka/SugoiAISiteShindan',
+  ai_lead_creator: '/Users/erka/AILeadCreator',
 } as const;
 type ProjectKey = keyof typeof PROJECTS;
 type PendingCommit = {
@@ -193,7 +194,7 @@ export function registerClaudeDevelopTools(server: Server) {
     description: '登録済みローカルプロジェクト内でClaude Codeへ調査・実装を依頼します。Git cleanを必須とし、機密ファイル・本番反映・DB・外部通信・シェル操作を禁止します。結果と差分はDBへ保存します。',
     inputSchema: z.object({
       action: z.enum(['status','prepare','run','result','validate_changes','commit_prepare','commit_apply','log']),
-      project: z.enum(['aiinfinity','dashboard98','sages','monkeyai','mcpv4','soreai','sugoi_ai_site_shindan']).optional(),
+      project: z.enum(['aiinfinity','dashboard98','sages','monkeyai','mcpv4','soreai','sugoi_ai_site_shindan','ai_lead_creator']).optional(),
       task: z.string().min(1).max(20_000).optional(),
       context: z.string().max(30_000).optional().default(''),
       acceptanceCriteria: z.string().max(10_000).optional().default(''),
