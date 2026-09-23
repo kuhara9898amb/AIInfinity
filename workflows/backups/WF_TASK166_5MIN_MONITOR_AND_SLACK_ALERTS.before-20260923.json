@@ -1,0 +1,648 @@
+{
+ "updatedAt": "2026-09-19T12:27:25.968Z",
+ "createdAt": "2026-09-07T14:35:06.639Z",
+ "id": "IUmG09WDzbCZvYd2",
+ "name": "WF_TASK166_5MIN_MONITOR_AND_SLACK_ALERTS",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "4a4a679c-dc3c-4272-ae6b-a5cf6ccab5e8",
+   "name": "5分ごとの停止監視",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    -660,
+    160
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "minutes",
+       "minutesInterval": 5
+      }
+     ]
+    }
+   }
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://host.docker.internal:8791/mcp",
+    "sendHeaders": true,
+    "specifyHeaders": "keypair",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Content-Type",
+       "value": "application/json"
+      },
+      {
+       "name": "Accept",
+       "value": "application/json, text/event-stream"
+      },
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.MCP_HTTP_BEARER_TOKEN }}"
+      },
+      {
+       "name": "Mcp-Method",
+       "value": "tools/call"
+      },
+      {
+       "name": "Mcp-Name",
+       "value": "n8n_stop_monitor_entrypoint"
+      },
+      {
+       "name": "Mcp-Protocol-Version",
+       "value": "2026-07-28"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "contentType": "json",
+    "jsonBody": "={{ JSON.stringify({ jsonrpc: \"2.0\", id: 1, method: \"tools/call\", params: { _meta: { \"io.modelcontextprotocol/protocolVersion\": \"2026-07-28\", \"io.modelcontextprotocol/clientCapabilities\": {} }, name: \"n8n_stop_monitor_entrypoint\", arguments: { idempotencyKey: \"t166-monitor-\" + $now.toMillis(), reason: \"task166 scheduled five minute stop monitor\" } } }) }}",
+    "options": {
+     "timeout": 180000,
+     "response": {
+      "response": {
+       "neverError": true,
+       "responseFormat": "text"
+      }
+     }
+    }
+   },
+   "id": "b87a58b4-8b1b-43cb-96aa-9d271f515a73",
+   "name": "Task166 停止検知",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -400,
+    160
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://host.docker.internal:8791/mcp",
+    "sendHeaders": true,
+    "specifyHeaders": "keypair",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Content-Type",
+       "value": "application/json"
+      },
+      {
+       "name": "Accept",
+       "value": "application/json, text/event-stream"
+      },
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.MCP_HTTP_BEARER_TOKEN }}"
+      },
+      {
+       "name": "Mcp-Method",
+       "value": "tools/call"
+      },
+      {
+       "name": "Mcp-Name",
+       "value": "n8n_recovery_notify_entrypoint"
+      },
+      {
+       "name": "Mcp-Protocol-Version",
+       "value": "2026-07-28"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "contentType": "json",
+    "jsonBody": "={{ JSON.stringify({ jsonrpc: \"2.0\", id: 1, method: \"tools/call\", params: { _meta: { \"io.modelcontextprotocol/protocolVersion\": \"2026-07-28\", \"io.modelcontextprotocol/clientCapabilities\": {} }, name: \"n8n_recovery_notify_entrypoint\", arguments: { idempotencyKey: \"t166-recovery-\" + $now.toMillis(), reason: \"task166 scheduled recovery and notification tick\" } } }) }}",
+    "options": {
+     "timeout": 180000,
+     "response": {
+      "response": {
+       "neverError": true,
+       "responseFormat": "text"
+      }
+     }
+    }
+   },
+   "id": "b33f75e9-88cb-454d-9a7a-8c2c1f3a2f8b",
+   "name": "Task166 復旧・DB記録・Discord通知",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -120,
+    160
+   ]
+  },
+  {
+   "id": "01766580-526f-42a4-8b37-e71fa2f37426",
+   "name": "監視結果を要約",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    180,
+    160
+   ],
+   "parameters": {
+    "jsCode": "const item = $input.first()?.json ?? {};\nreturn [{ json: { checkedAt: new Date().toISOString(), status: item.statusCode ?? null, completed: true } }];"
+   }
+  },
+  {
+   "id": "slack-outbox-load",
+   "name": "未配信の開発通知を取得",
+   "type": "n8n-nodes-base.mySql",
+   "typeVersion": 2.5,
+   "position": [
+    -400,
+    440
+   ],
+   "credentials": {
+    "mySql": {
+     "id": "6HLDbpvhL7ct5Yyx",
+     "name": "MySQL account"
+    }
+   },
+   "parameters": {
+    "resource": "database",
+    "operation": "executeQuery",
+    "options": {},
+    "query": "SELECT\n  o.id,o.event_type,o.project_key,COALESCE(o.task_code,'') task_code,\n  COALESCE(CAST(u.id AS CHAR),JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.taskNumber')),'') task_number,\n  COALESCE(u.title,JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.taskTitle')),'') task_title,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.reason')),'') reason,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.commit')),'') commit_hash,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.message')),'') payload_message,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.recommendedAction')),JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.recommended_action')),'') recommended_action,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.approvalAction')),JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.operation')),'') approval_action,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.impact')),'') impact\nFROM task_dispatcher_outbox o\nLEFT JOIN user_tasks u ON u.owner_key='kuhara_hisashi' AND BINARY u.task_code=BINARY o.task_code\nWHERE o.delivered_at IS NULL AND o.id>=69\nORDER BY o.id ASC LIMIT 50;"
+   }
+  },
+  {
+   "id": "slack-outbox-format",
+   "name": "Slack用に内容と次の行動を整形",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -140,
+    440
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const rows=$input.all().map(i=>i.json||{});if(!rows.length)return[];\nconst c=(v,m=500)=>String(v??'').replace(/[\\r\\n]/g,' ').replace(/\\s+/g,' ').trim().slice(0,m);\nconst fp=r=>[c(r.event_type,40),c(r.task_code,120),c(r.reason,300),c(r.payload_message,500),c(r.approval_action,200)].join('|');\nconst f=rows[0],same=rows.filter(r=>fp(r)===fp(f)),ids=same.map(r=>Number(r.id)).filter(Number.isSafeInteger);\nconst no=c(f.task_number,30),tt=c(f.task_title,140),internal=c(f.task_code||'不明',120),reason=c(f.reason,300),supplied=c(f.payload_message,900),recommended=c(f.recommended_action,500),approval=c(f.approval_action,300),impact=c(f.impact,300);\nconst commit=/^[0-9a-f]{7,40}$/i.test(String(f.commit_hash||''))?String(f.commit_hash):'';\nconst label=no&&tt?'Task '+no+'「'+tt+'」':tt?'「'+tt+'」':'タスク特定不可（内部ID: '+internal+'）';\nlet h,lines;\nif(f.event_type==='completed'){h='✅ 開発タスク完了';lines=[supplied||'実装・テスト・commitが完了しました'];if(commit)lines.push('commit: '+commit);}\nelse if(f.event_type==='anomaly'||f.event_type==='stopped'){h='⚠️ 開発タスク停止';lines=['停止理由: '+(reason||'正常完了前に終了しました'),'作業データ: 差分・worktreeは保全済み','自動対応: 安全確認が必要なため停止中','次のアクション: '+(recommended||(no?'このメッセージへ「OK Task '+no+'」と返信してください。チャッピーが現状を再確認してから安全に再開します。':'情報不足のため承認せず、この内部IDをチャッピーへ送って確認してください。'))];}\nelse{h='🟡 承認待ち';lines=['承認対象: '+(approval||supplied||'具体的な操作を取得できませんでした'),'必要理由: '+(reason||'人間の確認が必要と判定されました')];if(impact)lines.push('承認時の影響: '+impact);lines.push('次のアクション: '+(recommended||(no?'内容に問題がなければ、このメッセージへ「OK Task '+no+'」と返信してください。':'情報不足のため承認せず、この内部IDをチャッピーへ送って確認してください。')));}\nif(same.length>1)lines.push('重複 '+same.length+'件は1件にまとめました');\nconst text='<@U0BQJV2740J> '+[h,label,...lines].join('\\n');\nconst blocks=[{type:'header',text:{type:'plain_text',text:h,emoji:true}},{type:'section',text:{type:'mrkdwn',text:'<@U0BQJV2740J>\\n*'+label.replace(/[*_~]/g,'')+'*\\n'+lines.map(x=>'• '+x).join('\\n')}}];\nreturn[{json:{outbox_ids:ids.join(','),text:text.slice(0,2800),blocks}}];"
+   }
+  },
+  {
+   "id": "slack-outbox-send",
+   "name": "Slack Botで開発通知",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    120,
+    440
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $env.SLACK_HUMAN_TASK_WEBHOOK_URL }}",
+    "sendBody": true,
+    "contentType": "raw",
+    "rawContentType": "application/json",
+    "body": "={{ JSON.stringify({text:$json.text,blocks:$json.blocks}) }}",
+    "options": {}
+   }
+  },
+  {
+   "id": "slack-outbox-mark",
+   "name": "Slack成功後に配信済み",
+   "type": "n8n-nodes-base.mySql",
+   "typeVersion": 2.5,
+   "position": [
+    380,
+    440
+   ],
+   "credentials": {
+    "mySql": {
+     "id": "6HLDbpvhL7ct5Yyx",
+     "name": "MySQL account"
+    }
+   },
+   "parameters": {
+    "resource": "database",
+    "operation": "executeQuery",
+    "options": {},
+    "query": "UPDATE task_dispatcher_outbox SET delivered_at=NOW()\nWHERE delivered_at IS NULL\nAND FIND_IN_SET(id,'{{ $('Slack用に内容と次の行動を整形').item.json.outbox_ids }}')>0;"
+   }
+  }
+ ],
+ "connections": {
+  "5分ごとの停止監視": {
+   "main": [
+    [
+     {
+      "node": "Task166 停止検知",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "未配信の開発通知を取得",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Task166 停止検知": {
+   "main": [
+    [
+     {
+      "node": "Task166 復旧・DB記録・Discord通知",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Task166 復旧・DB記録・Discord通知": {
+   "main": [
+    [
+     {
+      "node": "監視結果を要約",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "未配信の開発通知を取得": {
+   "main": [
+    [
+     {
+      "node": "Slack用に内容と次の行動を整形",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Slack用に内容と次の行動を整形": {
+   "main": [
+    [
+     {
+      "node": "Slack Botで開発通知",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Slack Botで開発通知": {
+   "main": [
+    [
+     {
+      "node": "Slack成功後に配信済み",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1"
+ },
+ "staticData": {
+  "node:5分ごとの停止監視": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": null,
+ "versionId": "ff1693c3-1c75-49f1-afdd-e3f3aaa72e6f",
+ "activeVersionId": "ff1693c3-1c75-49f1-afdd-e3f3aaa72e6f",
+ "triggerCount": 1,
+ "shared": [
+  {
+   "updatedAt": "2026-09-07T14:35:06.640Z",
+   "createdAt": "2026-09-07T14:35:06.640Z",
+   "role": "workflow:owner",
+   "workflowId": "IUmG09WDzbCZvYd2",
+   "projectId": "VQ2ONJgxwGCnpR9w"
+  }
+ ],
+ "activeVersion": {
+  "updatedAt": "2026-09-19T12:27:25.970Z",
+  "createdAt": "2026-09-19T12:27:25.970Z",
+  "versionId": "ff1693c3-1c75-49f1-afdd-e3f3aaa72e6f",
+  "workflowId": "IUmG09WDzbCZvYd2",
+  "nodes": [
+   {
+    "id": "4a4a679c-dc3c-4272-ae6b-a5cf6ccab5e8",
+    "name": "5分ごとの停止監視",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "typeVersion": 1.2,
+    "position": [
+     -660,
+     160
+    ],
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "minutes",
+        "minutesInterval": 5
+       }
+      ]
+     }
+    }
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "http://host.docker.internal:8791/mcp",
+     "sendHeaders": true,
+     "specifyHeaders": "keypair",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "name": "Accept",
+        "value": "application/json, text/event-stream"
+       },
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.MCP_HTTP_BEARER_TOKEN }}"
+       },
+       {
+        "name": "Mcp-Method",
+        "value": "tools/call"
+       },
+       {
+        "name": "Mcp-Name",
+        "value": "n8n_stop_monitor_entrypoint"
+       },
+       {
+        "name": "Mcp-Protocol-Version",
+        "value": "2026-07-28"
+       }
+      ]
+     },
+     "sendBody": true,
+     "specifyBody": "json",
+     "contentType": "json",
+     "jsonBody": "={{ JSON.stringify({ jsonrpc: \"2.0\", id: 1, method: \"tools/call\", params: { _meta: { \"io.modelcontextprotocol/protocolVersion\": \"2026-07-28\", \"io.modelcontextprotocol/clientCapabilities\": {} }, name: \"n8n_stop_monitor_entrypoint\", arguments: { idempotencyKey: \"t166-monitor-\" + $now.toMillis(), reason: \"task166 scheduled five minute stop monitor\" } } }) }}",
+     "options": {
+      "timeout": 180000,
+      "response": {
+       "response": {
+        "neverError": true,
+        "responseFormat": "text"
+       }
+      }
+     }
+    },
+    "id": "b87a58b4-8b1b-43cb-96aa-9d271f515a73",
+    "name": "Task166 停止検知",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     -400,
+     160
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "http://host.docker.internal:8791/mcp",
+     "sendHeaders": true,
+     "specifyHeaders": "keypair",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "name": "Accept",
+        "value": "application/json, text/event-stream"
+       },
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.MCP_HTTP_BEARER_TOKEN }}"
+       },
+       {
+        "name": "Mcp-Method",
+        "value": "tools/call"
+       },
+       {
+        "name": "Mcp-Name",
+        "value": "n8n_recovery_notify_entrypoint"
+       },
+       {
+        "name": "Mcp-Protocol-Version",
+        "value": "2026-07-28"
+       }
+      ]
+     },
+     "sendBody": true,
+     "specifyBody": "json",
+     "contentType": "json",
+     "jsonBody": "={{ JSON.stringify({ jsonrpc: \"2.0\", id: 1, method: \"tools/call\", params: { _meta: { \"io.modelcontextprotocol/protocolVersion\": \"2026-07-28\", \"io.modelcontextprotocol/clientCapabilities\": {} }, name: \"n8n_recovery_notify_entrypoint\", arguments: { idempotencyKey: \"t166-recovery-\" + $now.toMillis(), reason: \"task166 scheduled recovery and notification tick\" } } }) }}",
+     "options": {
+      "timeout": 180000,
+      "response": {
+       "response": {
+        "neverError": true,
+        "responseFormat": "text"
+       }
+      }
+     }
+    },
+    "id": "b33f75e9-88cb-454d-9a7a-8c2c1f3a2f8b",
+    "name": "Task166 復旧・DB記録・Discord通知",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     -120,
+     160
+    ]
+   },
+   {
+    "id": "01766580-526f-42a4-8b37-e71fa2f37426",
+    "name": "監視結果を要約",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     180,
+     160
+    ],
+    "parameters": {
+     "jsCode": "const item = $input.first()?.json ?? {};\nreturn [{ json: { checkedAt: new Date().toISOString(), status: item.statusCode ?? null, completed: true } }];"
+    }
+   },
+   {
+    "id": "slack-outbox-load",
+    "name": "未配信の開発通知を取得",
+    "type": "n8n-nodes-base.mySql",
+    "typeVersion": 2.5,
+    "position": [
+     -400,
+     440
+    ],
+    "credentials": {
+     "mySql": {
+      "id": "6HLDbpvhL7ct5Yyx",
+      "name": "MySQL account"
+     }
+    },
+    "parameters": {
+     "resource": "database",
+     "operation": "executeQuery",
+     "options": {},
+     "query": "SELECT\n  o.id,o.event_type,o.project_key,COALESCE(o.task_code,'') task_code,\n  COALESCE(CAST(u.id AS CHAR),JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.taskNumber')),'') task_number,\n  COALESCE(u.title,JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.taskTitle')),'') task_title,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.reason')),'') reason,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.commit')),'') commit_hash,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.message')),'') payload_message,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.recommendedAction')),JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.recommended_action')),'') recommended_action,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.approvalAction')),JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.operation')),'') approval_action,\n  COALESCE(JSON_UNQUOTE(JSON_EXTRACT(o.payload_json,'$.impact')),'') impact\nFROM task_dispatcher_outbox o\nLEFT JOIN user_tasks u ON u.owner_key='kuhara_hisashi' AND BINARY u.task_code=BINARY o.task_code\nWHERE o.delivered_at IS NULL AND o.id>=69\nORDER BY o.id ASC LIMIT 50;"
+    }
+   },
+   {
+    "id": "slack-outbox-format",
+    "name": "Slack用に内容と次の行動を整形",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     -140,
+     440
+    ],
+    "parameters": {
+     "mode": "runOnceForAllItems",
+     "language": "javaScript",
+     "jsCode": "const rows=$input.all().map(i=>i.json||{});if(!rows.length)return[];\nconst c=(v,m=500)=>String(v??'').replace(/[\\r\\n]/g,' ').replace(/\\s+/g,' ').trim().slice(0,m);\nconst fp=r=>[c(r.event_type,40),c(r.task_code,120),c(r.reason,300),c(r.payload_message,500),c(r.approval_action,200)].join('|');\nconst f=rows[0],same=rows.filter(r=>fp(r)===fp(f)),ids=same.map(r=>Number(r.id)).filter(Number.isSafeInteger);\nconst no=c(f.task_number,30),tt=c(f.task_title,140),internal=c(f.task_code||'不明',120),reason=c(f.reason,300),supplied=c(f.payload_message,900),recommended=c(f.recommended_action,500),approval=c(f.approval_action,300),impact=c(f.impact,300);\nconst commit=/^[0-9a-f]{7,40}$/i.test(String(f.commit_hash||''))?String(f.commit_hash):'';\nconst label=no&&tt?'Task '+no+'「'+tt+'」':tt?'「'+tt+'」':'タスク特定不可（内部ID: '+internal+'）';\nlet h,lines;\nif(f.event_type==='completed'){h='✅ 開発タスク完了';lines=[supplied||'実装・テスト・commitが完了しました'];if(commit)lines.push('commit: '+commit);}\nelse if(f.event_type==='anomaly'||f.event_type==='stopped'){h='⚠️ 開発タスク停止';lines=['停止理由: '+(reason||'正常完了前に終了しました'),'作業データ: 差分・worktreeは保全済み','自動対応: 安全確認が必要なため停止中','次のアクション: '+(recommended||(no?'このメッセージへ「OK Task '+no+'」と返信してください。チャッピーが現状を再確認してから安全に再開します。':'情報不足のため承認せず、この内部IDをチャッピーへ送って確認してください。'))];}\nelse{h='🟡 承認待ち';lines=['承認対象: '+(approval||supplied||'具体的な操作を取得できませんでした'),'必要理由: '+(reason||'人間の確認が必要と判定されました')];if(impact)lines.push('承認時の影響: '+impact);lines.push('次のアクション: '+(recommended||(no?'内容に問題がなければ、このメッセージへ「OK Task '+no+'」と返信してください。':'情報不足のため承認せず、この内部IDをチャッピーへ送って確認してください。')));}\nif(same.length>1)lines.push('重複 '+same.length+'件は1件にまとめました');\nconst text='<@U0BQJV2740J> '+[h,label,...lines].join('\\n');\nconst blocks=[{type:'header',text:{type:'plain_text',text:h,emoji:true}},{type:'section',text:{type:'mrkdwn',text:'<@U0BQJV2740J>\\n*'+label.replace(/[*_~]/g,'')+'*\\n'+lines.map(x=>'• '+x).join('\\n')}}];\nreturn[{json:{outbox_ids:ids.join(','),text:text.slice(0,2800),blocks}}];"
+    }
+   },
+   {
+    "id": "slack-outbox-send",
+    "name": "Slack Botで開発通知",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     120,
+     440
+    ],
+    "parameters": {
+     "method": "POST",
+     "url": "={{ $env.SLACK_HUMAN_TASK_WEBHOOK_URL }}",
+     "sendBody": true,
+     "contentType": "raw",
+     "rawContentType": "application/json",
+     "body": "={{ JSON.stringify({text:$json.text,blocks:$json.blocks}) }}",
+     "options": {}
+    }
+   },
+   {
+    "id": "slack-outbox-mark",
+    "name": "Slack成功後に配信済み",
+    "type": "n8n-nodes-base.mySql",
+    "typeVersion": 2.5,
+    "position": [
+     380,
+     440
+    ],
+    "credentials": {
+     "mySql": {
+      "id": "6HLDbpvhL7ct5Yyx",
+      "name": "MySQL account"
+     }
+    },
+    "parameters": {
+     "resource": "database",
+     "operation": "executeQuery",
+     "options": {},
+     "query": "UPDATE task_dispatcher_outbox SET delivered_at=NOW()\nWHERE delivered_at IS NULL\nAND FIND_IN_SET(id,'{{ $('Slack用に内容と次の行動を整形').item.json.outbox_ids }}')>0;"
+    }
+   }
+  ],
+  "connections": {
+   "5分ごとの停止監視": {
+    "main": [
+     [
+      {
+       "node": "Task166 停止検知",
+       "type": "main",
+       "index": 0
+      },
+      {
+       "node": "未配信の開発通知を取得",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Task166 停止検知": {
+    "main": [
+     [
+      {
+       "node": "Task166 復旧・DB記録・Discord通知",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Task166 復旧・DB記録・Discord通知": {
+    "main": [
+     [
+      {
+       "node": "監視結果を要約",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "未配信の開発通知を取得": {
+    "main": [
+     [
+      {
+       "node": "Slack用に内容と次の行動を整形",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Slack用に内容と次の行動を整形": {
+    "main": [
+     [
+      {
+       "node": "Slack Botで開発通知",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Slack Botで開発通知": {
+    "main": [
+     [
+      {
+       "node": "Slack成功後に配信済み",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "hisashi kuhara",
+  "name": null,
+  "description": null,
+  "autosaved": false
+ },
+ "tags": []
+}
