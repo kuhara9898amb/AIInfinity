@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>営業管理 | 98 Dashboard</title>
+<style>
+/* ===== 実物 Dashboard98 cockpit.blade.php / sidebar.blade.php のトークンと構造を転記 ===== */
+:root{--navy:#0c2d63;--blue:#1457b8;--ink:#10213b;--muted:#718096;--bg:#f5f7fa;--line:#dfe5ed;--panel:#fff;--green:#087d70;--amber:#c77708;--violet:#6852b8;--red:#b93f42;--shadow:0 8px 24px rgba(18,42,73,.045)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI","IPAPGothic","IPAGothic",sans-serif}
+.app{display:grid;grid-template-columns:226px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;min-height:100vh;align-self:start;background:#fff;border-right:1px solid var(--line);padding:28px 18px 20px;display:flex;flex-direction:column}
+.brand{padding:0 17px 27px}.brand strong{display:block;color:var(--navy);font-size:39px;line-height:.9;letter-spacing:-.05em}.brand span{display:block;font-size:14px;margin-top:7px;font-weight:750}
+.nav{display:grid;gap:5px}.nav a{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:9px;color:#34445d;text-decoration:none;font-size:12px;font-weight:650;white-space:nowrap}.nav a.active{background:#eaf1fb;color:#0d4ca8}
+.nav a .new{margin-left:auto;font-size:9px;font-weight:800;color:#fff;background:#1457b8;border-radius:99px;padding:2px 6px}
+.ico{display:grid;place-items:center;width:22px;height:22px;color:currentColor;flex:0 0 22px}.ico svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.side-note{margin-top:22px;border:1px solid var(--line);border-radius:11px;padding:13px;color:#516078;font-size:10px;line-height:1.6;background:#fafbfd}.side-note b{display:block;color:var(--navy);font-size:11px;margin-bottom:2px}
+.main{padding:25px 27px 30px;min-width:0;max-width:1600px;width:100%;margin:0 auto}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:25px;margin-bottom:18px}.top h1{margin:0;font-size:26px;letter-spacing:-.035em}.top p{margin:6px 0 0;font-size:12px;color:#4f6078}
+.say{max-width:420px;border:1px solid #d9e1ed;border-radius:10px;background:linear-gradient(135deg,#f7f9fd,#eef3fa);padding:10px 13px;font-size:11px;line-height:1.65;color:#174b99}.say b{display:block;font-size:12px;color:var(--navy)}
+.sec{display:flex;align-items:baseline;gap:4px 10px;flex-wrap:wrap;margin:0 2px 8px}.sec b{font-size:13px;color:var(--navy);white-space:nowrap}.sec span{font-size:11px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:13px;margin-bottom:16px}
+.kpi{display:grid;grid-template-columns:43px 1fr;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-top:2px solid var(--accent);border-radius:10px;padding:15px 13px;min-height:104px;box-shadow:var(--shadow);min-width:0}
+.kpi.win{background:linear-gradient(135deg,#f1faf8,#fff)}
+.kpi-icon{display:grid;place-items:center;width:42px;height:42px;border:1px solid color-mix(in srgb,var(--accent) 28%,white);border-radius:50%;color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,white)}
+.kpi-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.kpi small{display:block;color:#526178;font-size:10px;font-weight:700}.kpi b{display:block;font-size:24px;line-height:1.1;margin-top:5px;letter-spacing:-.04em}.kpi em{font-style:normal;font-size:11px;margin-left:2px;color:#526178}
+.kpi.win b{color:var(--green)}.kpi p{margin:5px 0 0;font-size:9.5px;color:var(--muted)}
+.split{display:flex;gap:14px;margin-top:4px}.split span{display:block;font-size:9px;color:var(--muted);font-weight:700}.split b{margin-top:1px;white-space:nowrap}
+.bar{display:block;width:100%;min-width:90px;height:5px;border-radius:8px;background:#e4e8ee;overflow:hidden;margin-top:7px}.bar i{display:block;height:100%;min-width:3px;border-radius:8px;background:var(--accent)}
+.grid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-bottom:16px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);padding:17px;min-width:0}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}.panel-title{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.panel-title i{color:var(--blue);font-style:normal;font-size:17px}.panel h2{font-size:14px;margin:0}
+.panel .sub{margin:0 0 6px;font-size:10px;color:var(--muted)}
+.more{border:1px solid #d7dee8;border-radius:8px;background:#fff;color:#526178;text-decoration:none;padding:7px 10px;font-size:9px;font-weight:700;white-space:nowrap}
+.badge{font-size:9px;font-weight:700;border-radius:999px;padding:4px 8px;background:#f4f6f8;color:#667287;white-space:nowrap}
+.badge.red{color:#b93f42;background:#fdeeee}.badge.amber{color:#a65f00;background:#fff6e8}.badge.blue{color:#1457b8;background:#eaf1fb}.badge.green{color:#087d70;background:#e7f6f3}.badge.violet{color:#6852b8;background:#f1eefb}
+.todo{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;border:1px solid #e5e9ef;border-radius:8px;padding:11px 12px;margin-top:8px}
+.todo.late{border-color:#f3cfd0;background:#fffafa}
+.todo b{font-size:12px}.todo .co{font-size:10px;color:var(--muted);margin-left:6px}.todo .next{font-size:10.5px;color:#34445d;margin-top:4px}.todo .meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.acts{display:flex;gap:6px}
+.btn{font:inherit;font-size:10.5px;font-weight:800;border:1px solid #d7dee8;border-radius:8px;background:#fff;color:#0d4ca8;padding:8px 11px;white-space:nowrap}
+.btn.primary{border:0;background:linear-gradient(90deg,#0b326d,#1258b9);color:#fff}
+.hint{margin-top:10px;font-size:9.5px;color:var(--muted)}
+.event{display:grid;grid-template-columns:10px 70px 1fr;gap:8px;align-items:start;padding:9px 0;border-bottom:1px solid #edf0f4}.event:last-of-type{border:0}
+.event-dot{width:8px;height:8px;border-radius:50%;border:2px solid var(--blue);background:#fff;margin-top:3px}.event-dot.win{border-color:var(--green);background:var(--green)}
+.event time{font-size:10px;font-weight:750}.event b{font-size:10.5px}.event b.win{color:var(--green)}.event p{margin:2px 0 0;font-size:10px;color:#34445d}.event small{display:block;margin-top:2px;font-size:8.5px;color:var(--muted)}
+.cols{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:8px}
+.col{background:#f7f9fc;border:1px solid #e5e9ef;border-radius:9px;padding:9px}.col.won{background:#eef8f6;border-color:#cbe9e3}
+.col h3{display:flex;justify-content:space-between;margin:0;font-size:11.5px;color:var(--navy)}.col h3 span{color:var(--muted)}
+.col .amt{font-size:9px;color:var(--muted);margin:3px 0 8px}
+.deal{background:#fff;border:1px solid #e5e9ef;border-radius:8px;padding:8px 9px;margin-bottom:7px;font-size:10px}
+.deal b{display:block;font-size:11px}.deal .c{color:var(--muted)}.deal .m{margin-top:4px;font-size:9.5px;color:#34445d}.deal .d{display:flex;justify-content:space-between;align-items:center;gap:5px;margin-top:5px}
+.deal.late{border-left:3px solid var(--red)}
+.foot{margin-top:8px;font-size:9.5px;color:var(--muted)}
+.mobile-nav-bar{display:none}
+
+/* ===== スマホ（実物 sidebar.blade.php の max-width:760px の動き） ===== */
+@media(max-width:760px){
+ .app{display:block;padding-top:58px}
+ .side{display:none}
+ .mobile-nav-bar{position:fixed;inset:0 0 auto 0;height:58px;display:flex;align-items:center;padding:0 14px;background:#fff;border-bottom:1px solid var(--line);z-index:100}
+ .mobile-nav-bar strong{color:var(--navy);font-size:18px;white-space:nowrap;margin-left:10px}
+ .mobile-nav-date{margin-left:auto;white-space:nowrap;font-size:12px;color:#516078}
+ .mobile-nav-toggle{display:grid;place-items:center;width:48px;height:48px;border:0;border-radius:10px;background:#eaf1fb;color:#0d4ca8;font-size:21px}
+ .main{padding:18px 12px 24px}
+ .top{display:block;margin-bottom:14px}.top h1{font-size:22px}.top p{font-size:11px}.say{margin-top:10px;max-width:none}
+ .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .kpis .wide{grid-column:1/-1}.o1{order:1}.o2{order:2}.o3{order:3}.o4{order:4}.sp-hide{display:none}
+ .kpi{min-height:91px;padding:11px 10px;grid-template-columns:35px 1fr}.kpi-icon{width:34px;height:34px}.kpi-icon svg{width:18px;height:18px}.kpi b{font-size:20px}
+ .grid{grid-template-columns:1fr;gap:12px}
+ .panel{padding:14px}
+ .todo{grid-template-columns:1fr}
+ .acts{display:grid;grid-template-columns:repeat(3,1fr)}.acts .btn{min-height:44px;font-size:12px;padding:8px 4px}
+ .todo b{font-size:13px}.todo .next{font-size:11.5px}
+ .event{grid-template-columns:10px 64px 1fr}.event p{font-size:11px}
+ .cols{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}
+ .col{flex:0 0 78%;scroll-snap-align:start}
+}
+</style></head><body>
+<header class="mobile-nav-bar"><button type="button" class="mobile-nav-toggle">☰</button><strong>98 Dashboard</strong><span class="mobile-nav-date">9月23日 水曜日</span></header>
+<div class="app">
+<aside class="side"><div class="brand"><strong>98</strong><span>Dashboard</span></div><nav class="nav">
+<a><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8v9H3z"/></svg></span>ホーム</a>
+<a><span class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 9 2 2 4-4M8 15h8"/></svg></span>タスク管理</a>
+<a><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zM3 7l9 6 9-6"/></svg></span>メール・返信</a>
+<a><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></svg></span>スケジュール</a>
+<a class="active"><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M5 16l4-5 4 3 6-8"/><path d="M15 6h4v4"/></svg></span>営業管理<span class="new">NEW</span></a>
+<a><span class="ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0m1-15a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 6"/></svg></span>会うべき人</a>
+<a><span class="ico"><svg viewBox="0 0 24 24"><circle cx="8" cy="7" r="3"/><circle cx="17" cy="8" r="2.5"/><path d="M2 20a6 6 0 0 1 12 0m1-5a5 5 0 0 1 7 5"/></svg></span>人脈リスト</a>
+<a><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span>経費分析</a>
+<a><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/><path d="m4 7 6-4 6 6 4-3"/></svg></span>AI顧問活動概要</a>
+<a><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/><path d="m16 16 2 2 3-4"/></svg></span>AI顧問アクション</a>
+<a><span class="ico"><svg viewBox="0 0 24 24"><path d="M5 4h10l4 4v12H5zM15 4v5h4"/></svg></span>プロジェクト</a>
+<a><span class="ico"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM9 8h6m-6 4h6m-6 4h4"/></svg></span>外部メモリー</a>
+<a><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg></span>システム状況</a>
+</nav><div class="side-note"><b>AI Executive Assistant</b>今日も最高の意思決定をサポートします。</div></aside>
+
+<main class="main">
+<header class="top"><div><h1>営業管理</h1><p>9月23日 水曜日　／　今月：2026年9月　今週：9/21（月）〜 9/27（日）</p></div>
+<div class="say"><b>話すだけで記録できます</b>Claude に「今日 田中さんに連絡した」「木村工業と初期50万・月20万で契約」と伝えると、ここに反映されます。</div></header>
+
+<div class="sec"><b>成果</b><span>2026年9月</span></div>
+<section class="kpis">
+ <div class="kpi win o1" style="--accent:#087d70"><span class="kpi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg></span><span><small>契約件数（今月）</small><b>1<em>件</em></b><p>累計 1件</p></span></div>
+ <div class="kpi win wide o3" style="--accent:#087d70"><span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M6 4l6 8 6-8M6 12h12M6 16h12M12 12v8"/></svg></span><span><small>今月の受注金額</small><span class="split"><span><span>初期費用</span><b>50<em>万円</em></b></span><span><span>月額</span><b>20<em>万円/月</em></b></span></span><p>初期は受注月に計上</p></span></div>
+ <div class="kpi win o2" style="--accent:#087d70"><span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg></span><span><small>月額の合計（契約中）</small><b>20<em>万円/月</em></b><p>年換算 240万円</p></span></div>
+ <div class="kpi wide o4" style="--accent:#6852b8"><span class="kpi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg></span><span><small>見込み（ヒアリング〜提案）</small><span class="split"><span><span>初期費用</span><b>150<em>万円</em></b></span><span><span>月額</span><b>55<em>万円/月</em></b></span></span><p>3件の合計</p></span></div>
+ <div class="kpi sp-hide" style="--accent:#1457b8"><span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5M8 12h8M8 16h8"/></svg></span><span><small>提案中</small><b>1<em>件</em></b><p>回答待ち 1件</p></span></div>
+</section>
+
+<div class="sec"><b>活動</b><span>今週 9/21〜9/27　目標は設定ファイルの固定値</span></div>
+<section class="kpis">
+ <div class="kpi" style="--accent:#1457b8"><span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zM3 7l9 6 9-6"/></svg></span><span><small>連絡</small><b>3<em>／ 目標 5</em></b><span class="bar"><i style="width:60%"></i></span></span></div>
+ <div class="kpi" style="--accent:#1457b8"><span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="m10 8-5 4 5 4v-3h4a5 5 0 0 1 5 5v1a8 8 0 0 0-8-9h-1z"/></svg></span><span><small>返信</small><b>1<em>件</em></b><p>返信率 33%</p></span></div>
+ <div class="kpi" style="--accent:#c77708"><span class="kpi-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0m1-15a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 6"/></svg></span><span><small>面談・ヒアリング</small><b>0<em>／ 目標 2</em></b><span class="bar"><i style="width:3%"></i></span></span></div>
+ <div class="kpi" style="--accent:#b93f42"><span class="kpi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5h.01"/></svg></span><span><small>期限切れ</small><b>2<em>件</em></b><p>今日やることの上に表示</p></span></div>
+ <div class="kpi wide" style="--accent:#6852b8"><span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg></span><span><small>優先A 未接触</small><b>6<em>／ 12名</em></b><span class="bar"><i style="width:50%"></i></span></span></div>
+</section>
+
+<div class="grid">
+<section class="panel"><div class="panel-head"><div class="panel-title"><i>★</i><h2>今日やること</h2><span class="badge red">期限切れ 2</span><span class="badge blue">今日 2</span></div></div>
+<p class="sub">ボタン1回で、接触記録の保存・段階の更新・次回日付（3日後）の設定まで終わります。</p>
+<div class="todo late"><div><b>佐藤 一郎 様</b><span class="co">佐藤精機製作所 代表取締役</span><div class="next">次にやること：ヒアリング日程の再打診（前回返信なし）</div><div class="meta"><span class="badge red">3日超過 9/20</span><span class="badge">連絡済</span><span class="badge amber">優先A</span></div></div><div class="acts"><button class="btn">連絡した</button><button class="btn">返信あり</button><button class="btn primary">面談した</button></div></div>
+<div class="todo late"><div><b>鍛治田工務店 様</b><span class="co">既存客（Web制作）</span><div class="next">次にやること：AI業務改善の提案を持っていく</div><div class="meta"><span class="badge red">1日超過 9/22</span><span class="badge violet">診断</span><span class="badge green">既存客</span></div></div><div class="acts"><button class="btn">連絡した</button><button class="btn">返信あり</button><button class="btn primary">面談した</button></div></div>
+<div class="todo"><div><b>山本 恵子 様</b><span class="co">山本会計事務所 所長</span><div class="next">次にやること：紹介のお礼と、20分ヒアリングのお願い</div><div class="meta"><span class="badge blue">今日</span><span class="badge">未接触</span><span class="badge amber">優先A</span></div></div><div class="acts"><button class="btn">連絡した</button><button class="btn">返信あり</button><button class="btn primary">面談した</button></div></div>
+<div class="todo"><div><b>MTA 様</b><span class="co">既存客</span><div class="next">次にやること：9月末請求の確認と、次の相談の打診</div><div class="meta"><span class="badge blue">今日</span><span class="badge green">既存客</span></div></div><div class="acts"><button class="btn">連絡した</button><button class="btn">返信あり</button><button class="btn primary">面談した</button></div></div>
+<div class="hint">契約・失注・金額の入力と次回日付の変更は、MVPでは Claude に話して行います。</div>
+</section>
+
+<section class="panel"><div class="panel-head"><div class="panel-title"><i>▣</i><h2>最近の活動</h2></div><a class="more">すべて見る</a></div>
+<p class="sub">画面のボタンと、Claude への話しかけの両方の記録が並びます。</p>
+<div class="event"><span class="event-dot win"></span><time>9/23 10:12</time><div><b class="win">契約</b><p>木村 様（木村工業）初期50万円＋月20万円</p><small>Claude経由で記録</small></div></div>
+<div class="event"><span class="event-dot"></span><time>9/23 09:40</time><div><b>連絡</b><p>高橋 様（高橋印刷）LINEで近況とAI活用の話題</p></div></div>
+<div class="event"><span class="event-dot"></span><time>9/22 16:40</time><div><b>返信あり</b><p>中村 様（中村設備）→ 次回 9/29 ヒアリング</p></div></div>
+<div class="event"><span class="event-dot"></span><time>9/22 11:05</time><div><b>連絡</b><p>佐藤 様（佐藤精機製作所）Facebookで紹介依頼</p></div></div>
+<div class="event"><span class="event-dot"></span><time>9/21 18:30</time><div><b>提案</b><p>伊藤 様（伊藤商事）初期50万円＋月25万円</p><small>Claude経由で記録</small></div></div>
+</section>
+</div>
+
+<section class="panel"><div class="panel-head"><div class="panel-title"><i>▣</i><h2>案件パイプライン</h2></div><a class="more">失注を表示</a></div>
+<p class="sub">段階ごとの件数と金額（初期費用＋月額）</p>
+<div class="cols">
+ <div class="col"><h3>未接触 <span>6</span></h3><div class="amt">優先Aの残り</div>
+  <div class="deal"><b>山本 恵子 様</b><span class="c">山本会計事務所</span><div class="d"><span class="badge amber">優先A</span><span class="c">今日</span></div></div>
+  <div class="deal"><b>小林 様</b><span class="c">小林金型</span><div class="d"><span class="badge amber">優先A</span><span class="c">9/25</span></div></div>
+  <div class="deal"><b>ほか 4名</b></div></div>
+ <div class="col"><h3>連絡済 <span>3</span></h3><div class="amt">返信待ち</div>
+  <div class="deal late"><b>佐藤 一郎 様</b><span class="c">佐藤精機製作所</span><div class="d"><span class="badge red">3日超過</span></div></div>
+  <div class="deal"><b>高橋 様</b><span class="c">高橋印刷</span><div class="d"><span class="badge">返信待ち</span><span class="c">9/26</span></div></div>
+  <div class="deal"><b>渡辺 様</b><span class="c">渡辺リフォーム</span><div class="d"><span class="badge">返信待ち</span><span class="c">9/27</span></div></div></div>
+ <div class="col"><h3>ヒアリング <span>1</span></h3><div class="amt">初期50万＋月20万</div>
+  <div class="deal"><b>中村 様</b><span class="c">中村設備</span><div class="m">初期 50万 ／ 月 20万</div><div class="d"><span class="badge blue">9/29 予定</span></div></div></div>
+ <div class="col"><h3>診断 <span>1</span></h3><div class="amt">初期50万＋月10万</div>
+  <div class="deal late"><b>鍛治田工務店 様</b><span class="c">既存客</span><div class="m">初期 50万 ／ 月 10万</div><div class="d"><span class="badge red">1日超過</span></div></div></div>
+ <div class="col"><h3>提案 <span>1</span></h3><div class="amt">初期50万＋月25万</div>
+  <div class="deal"><b>伊藤 様</b><span class="c">伊藤商事</span><div class="m">初期 50万 ／ 月 25万</div><div class="d"><span class="badge violet">回答待ち</span></div></div></div>
+ <div class="col won"><h3>契約 <span>1</span></h3><div class="amt">初期50万＋月20万</div>
+  <div class="deal"><b>木村 様</b><span class="c">木村工業</span><div class="m">初期 50万 ／ 月 20万</div><div class="d"><span class="badge green">9/23 契約</span></div></div></div>
+</div>
+<div class="foot">表示中の人物・会社名・金額はイメージ用のサンプルです</div>
+</section>
+</main></div>
+</body></html>
