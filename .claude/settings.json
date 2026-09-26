@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "mcp__AI_Infinity_v4__mcp_v4_tunnel"
+      "mcp__AI_Infinity_v4__mcp_v4_tunnel",
       "mcp__AI_Infinity_v4__project_db_update"
     ]
   }
