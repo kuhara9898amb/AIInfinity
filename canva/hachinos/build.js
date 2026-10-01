@@ -49,9 +49,9 @@ function heading(s, en, ja, o = {}) {
   heading(s, 'PROBLEM', '防犯カメラ、「録画するだけ」になっていませんか？');
   const items = [
     ['p-record.png', '映像は何かあった時に\n見返すだけ'],
-    ['p-unknown.png', 'どんなお客様が来ているか\n数字でわからない'],
-    ['p-route.png', '売場やレイアウトの効果を\n検証できない'],
-    ['p-late.png', '万引き・転倒・侵入に\n気づくのが遅れる'],
+    ['p-unknown.png', 'どんなお客様が\n来ているか\n数字でわからない'],
+    ['p-route.png', '売場やレイアウトの\n効果を検証できない'],
+    ['p-late.png', '万引き・転倒・侵入に\n気づくのが\n遅れる'],
     ['p-staff.png', '人手不足で\n見回りが追いつかない'],
   ];
   const cw = 2.25, gap = 0.2, x0 = (W - (cw * 5 + gap * 4)) / 2, y0 = 2.05, ch = 3.4;
@@ -59,11 +59,10 @@ function heading(s, en, ja, o = {}) {
     const x = x0 + i * (cw + gap);
     card(s, x, y0, cw, ch);
     s.addImage({ path: img(f), x: x + (cw - 1.6) / 2, y: y0 + 0.25, w: 1.6, h: 1.6 });
-    txt(s, t, { x: x + 0.1, y: y0 + 2.1, w: cw - 0.2, h: 1.0, fontSize: 13, bold: true, align: 'center', valign: 'middle', lineSpacingMultiple: 1.3 });
+    txt(s, t, { x: x + 0.08, y: y0 + 2.0, w: cw - 0.16, h: 1.2, fontSize: 13, bold: true, align: 'center', valign: 'middle', lineSpacingMultiple: 1.3 });
   });
-  s.addShape(pres.shapes.RECTANGLE, { x: 4.62, y: 6.35, w: 4.1, h: 0.22, fill: { color: Y }, line: { type: 'none' } });
   txt(s, [
-    { text: 'その映像、' }, { text: '売上と現場改善のデータ', options: { bold: true } }, { text: 'に変えられます。' },
+    { text: 'その映像、' }, { text: '売上と現場改善のデータ', options: { bold: true, highlight: Y } }, { text: 'に変えられます。' },
   ], { x: 0.6, y: 5.95, w: W - 1.2, h: 0.6, fontSize: 24, bold: true, align: 'center', valign: 'middle', color: K });
 }
 
@@ -106,7 +105,7 @@ function heading(s, en, ja, o = {}) {
     const x = x0 + i * (cw + gap);
     card(s, x, y0, cw, ch, { line: { type: 'none' } });
     s.addImage({ path: img(f), x: x + (cw - 1.7) / 2, y: y0 + 0.25, w: 1.7, h: 1.7 });
-    txt(s, t, { x: x + 0.12, y: y0 + 2.15, w: cw - 0.24, h: 0.75, fontSize: 15, bold: true, align: 'center', valign: 'middle', color: K });
+    txt(s, t, { x: x + 0.06, y: y0 + 2.15, w: cw - 0.12, h: 0.75, fontSize: 13.5, bold: true, align: 'center', valign: 'middle', color: K });
     txt(s, d, { x: x + 0.2, y: y0 + 3.0, w: cw - 0.4, h: 1.4, fontSize: 12, color: S, lineSpacingMultiple: 1.4 });
   });
 }
@@ -117,7 +116,6 @@ function heading(s, en, ja, o = {}) {
   heading(s, 'DEVICE', '既存カメラに、本体を加えるだけ');
   s.addImage({ path: img('hachinos-product-v2.png'), x: 0.6, y: 1.95, w: 5.8, h: 5.8 * 880 / 1100 });
   txt(s, 'HACHINOS本体　※イメージ', { x: 0.6, y: 6.65, w: 5.8, h: 0.3, fontSize: 10, color: S, align: 'center' });
-  hexLine(s, 11.4, 5.6, 1.1); hex(s, 12.1, 6.35, 0.75);
   txt(s, 'カメラ工事を最小限に。\n映像解析はこの1台で。', { x: 7.0, y: 2.2, w: 5.8, h: 1.3, fontSize: 26, bold: true, color: K, lineSpacingMultiple: 1.25 });
   txt(s, 'HACHINOS本体を施設内のネットワークに設置し、既存の防犯カメラ映像を取り込むだけでAI解析を開始できます。カメラの入れ替えや大規模な配線工事を前提としません。',
     { x: 7.0, y: 3.7, w: 5.6, h: 1.2, fontSize: 14, color: T, lineSpacingMultiple: 1.5 });
@@ -126,7 +124,7 @@ function heading(s, en, ja, o = {}) {
     const y = 5.1 + i * 0.5;
     s.addShape(pres.shapes.OVAL, { x: 7.0, y: y + 0.04, w: 0.28, h: 0.28, fill: { color: Y }, line: { type: 'none' } });
     txt(s, '✓', { x: 7.0, y: y + 0.04, w: 0.28, h: 0.28, fontSize: 11, bold: true, align: 'center', valign: 'middle', color: K });
-    txt(s, c, { x: 7.45, y, w: 5.3, h: 0.36, fontSize: 14, bold: true, valign: 'middle', color: K });
+    txt(s, c, { x: 7.45, y, w: 5.5, h: 0.36, fontSize: 13, bold: true, valign: 'middle', color: K });
   });
 }
 
@@ -160,11 +158,11 @@ function heading(s, en, ja, o = {}) {
   const s = base(WH);
   heading(s, 'BASIC APPS', '基本アプリ（5群）');
   const items = [
-    ['b-attr-v2.png', '属性分析／リピート検知', '性別・推定年齢を分析。常連のお客様や、登録済みの出入り禁止対象者の来店を検知します。'],
+    ['b-attr-v2.png', '属性分析／\nリピート検知', '性別・推定年齢を分析。常連のお客様や、登録済みの出入り禁止対象者の来店を検知します。'],
     ['b-flow-v2.png', '動線／滞留分析', '店内の移動経路を動線図で、立ち止まりの多い場所をヒートマップで可視化します。'],
-    ['b-count-v2.png', '通行量／人数カウント', '入店数・通行量・エリアごとの人数を時間帯別に集計します。'],
-    ['b-intrusion-v2.png', '侵入／ラインクロス／エリア検知', '立入禁止エリアへの侵入や、指定ラインの通過を検知して通知します。'],
-    ['b-safety-v2.png', '転倒／タバコ／火災検知', '転倒・喫煙・火災の兆候を検知し、早期対応につなげます。'],
+    ['b-count-v2.png', '通行量／\n人数カウント', '入店数・通行量・エリアごとの人数を時間帯別に集計します。'],
+    ['b-intrusion-v2.png', '侵入／ラインクロス／\nエリア検知', '立入禁止エリアへの侵入や、指定ラインの通過を検知して通知します。'],
+    ['b-safety-v2.png', '転倒／タバコ／\n火災検知', '転倒・喫煙・火災の兆候を検知し、早期対応につなげます。'],
   ];
   // 3 + 2 layout of horizontal cards
   const cw = 3.9, ch = 2.15, gap = 0.25;
@@ -256,7 +254,7 @@ const cases = [
     c.tags.forEach((t, j) => {
       const y = y0 + 2.55 + j * 0.58;
       s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: x + 0.15, y, w: cw - 0.3, h: 0.45, rectRadius: 0.08, fill: { color: YS }, line: { type: 'none' } });
-      txt(s, t, { x: x + 0.25, y, w: cw - 0.5, h: 0.45, fontSize: 11, bold: true, color: K, valign: 'middle' });
+      txt(s, t, { x: x + 0.22, y, w: cw - 0.4, h: 0.45, fontSize: 10, bold: true, color: K, valign: 'middle' });
     });
   });
 }
@@ -327,7 +325,7 @@ cases.forEach((c) => {
   s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: mx, y: 1.75, w: mw, h: 3.0, rectRadius: 0.15, fill: { color: K }, line: { type: 'none' } });
   txt(s, '③ 月額利用料', { x: mx + 0.3, y: 1.95, w: mw - 0.6, h: 0.35, fontSize: 15, bold: true, color: WH });
   txt(s, 'カメラ1台あたり', { x: mx + 0.3, y: 2.45, w: mw - 0.6, h: 0.3, fontSize: 12, color: 'DDDDDD' });
-  txt(s, [{ text: '15,000', options: { fontSize: 44, bold: true, color: Y } }, { text: ' 円／月', options: { fontSize: 14, color: WH } }], { x: mx + 0.3, y: 2.75, w: mw - 0.6, h: 0.85, valign: 'middle' });
+  txt(s, [{ text: '15,000', options: { fontSize: 32, bold: true, color: Y } }, { text: ' 円／月', options: { fontSize: 13, color: WH } }], { x: mx + 0.3, y: 2.8, w: mw - 0.5, h: 0.75, valign: 'middle' });
   txt(s, '（税抜）5台 75,000円／10台 150,000円／15台 225,000円', { x: mx + 0.3, y: 3.65, w: mw - 0.6, h: 0.5, fontSize: 10.5, color: 'DDDDDD', lineSpacingMultiple: 1.3 });
   txt(s, 'ソフトウェア利用料とトラブル時の対応を含みます。', { x: mx + 0.3, y: 4.2, w: mw - 0.6, h: 0.4, fontSize: 10.5, color: 'DDDDDD' });
 
@@ -394,7 +392,7 @@ cases.forEach((c) => {
 // ---------- 19. Closing ----------
 {
   const s = base(K, { noLogo: true, light: true });
-  hexLine(s, 9.6, 0.6, 1.6); hex(s, 11.0, 1.4, 1.2); hexLine(s, 11.6, 4.8, 1.3); hex(s, 0.5, 5.6, 0.9); hexLine(s, 1.2, 6.2, 0.7);
+  hexLine(s, 9.6, 0.6, 1.6); hex(s, 11.0, 1.4, 1.2); hexLine(s, 11.6, 4.8, 1.3); hex(s, 10.4, 5.6, 0.9); hexLine(s, 9.5, 6.3, 0.7);
   s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.9, y: 0.9, w: 2.6, h: 0.9, rectRadius: 0.12, fill: { color: WH }, line: { type: 'none' } });
   s.addImage({ path: img('logo.png'), x: 1.1, y: 1.08, w: 2.2, h: 2.2 * 119 / 486 });
   txt(s, 'カメラはそのまま。\nまずは今の環境でできることを\n確認しませんか。', { x: 0.9, y: 2.3, w: 9, h: 2.0, fontSize: 34, bold: true, color: WH, lineSpacingMultiple: 1.25 });
